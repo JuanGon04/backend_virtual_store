@@ -1,0 +1,33 @@
+services:
+  
+  # Backend Service
+  virtual_store_backend:
+    container_name: virtual_store_backend
+    build: .
+    restart: always
+    ports:
+      - '3001:3001'
+    environment:
+      DB_HOST: virtual_store_database
+      DB_PORT: 3306
+      DB_USER: admin_db
+      DB_PASSWORD: lkTYUN8hjdfd154*
+      DB_NAME: store_db
+    depends_on:
+      - virtual-store-db
+  
+  
+  # MySQL Database
+  virtual-store-db:
+    container_name: virtual_store_database
+    image: mysql:8.0
+    restart: always
+    volumes:
+      - ./mysql:/var/lib/mysql
+    ports:
+      - '3312:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: canE752Sy1hnXHhX*!
+      MYSQL_DATABASE: store_db
+      MYSQL_USER: admin_db
+      MYSQL_PASSWORD: lkTYUN8hjdfd154*
