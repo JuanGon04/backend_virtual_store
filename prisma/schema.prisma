@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(uuid())
+  name String
+  email String @unique
+  password String
+  rol String @default("client")
+  token_reset_password String?
+
+  //payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+// model Payment {
+//   id String @id @default(uuid())
+//   user_id String
+//   id_producto String
+//   status String @default("pending")
+//   payment_method Json?
+//   external_reference String @unique
+//   preference_id String?
+//   client_id String
+//   collector_id String?
+//   payer Json? 
+//   payment_id_mercadopago String?
+//   date_created DateTime?
+
+
+//   user User @relation(fields: [user_id], references: [id])
+//   product Product @relation(fields: [id_producto], references: [id])
+
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
+
+model Product {
+  id Int @id @default(autoincrement())
+  name String?
+  price Float
+  stock Int
+  inputs Int @default(0)
+  outputs Int @default(0)
+  brand String?
+  description String?
+  //image String
+
+  //payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Orders {
+  id Int @id @default(autoincrement())
+  totalAmount Float
+  totalItems Int
+  status OrdersStatus @default(PENDING)
+  paid Boolean @default(false)
+  paidAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items OrdersItems[]
+}
+
+model OrdersItems {
+  id Int @id @default(autoincrement())
+  orderId Int
+  productId String
+  quantity Int
+  price Float
+
+  order Orders @relation(fields: [orderId], references: [id])
+  //product Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum OrdersStatus {
+  PENDING
+  COMPLETED
+  CANCELED
+}
