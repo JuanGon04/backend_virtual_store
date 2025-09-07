@@ -9,6 +9,8 @@ interface EnvVars {
   FRONTEND_URL_DEV: string;
   FRONTEND_URL_PROD: string;
   JWT_SECRET: string;
+  SWAGGER_USER: string;
+  SWAGGER_SECRET: string;
 }
 
 const envSchema = joi
@@ -18,6 +20,8 @@ const envSchema = joi
     ORIGINS_PROD: joi.array().items(joi.string()).required(),
     ENVIRONMENT: joi.string().required(),
     JWT_SECRET: joi.string().required(),
+    SWAGGER_SECRET: joi.string().required(),
+    SWAGGER_USER: joi.string().required(),
     // FRONTEND_URL_DEV: joi.string().required(),
     // FRONTEND_URL_PROD: joi.string().required(),
   })
@@ -41,4 +45,6 @@ export const envs = {
   originsProd: envVars.ORIGINS_PROD,
   environment: envVars.ENVIRONMENT,
   jwt_secret: envVars.JWT_SECRET,
+  swagger_secret: envVars.SWAGGER_SECRET,
+  swagger_user: envVars.SWAGGER_USER,
 };
