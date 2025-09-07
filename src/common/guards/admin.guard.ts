@@ -22,7 +22,6 @@ export class AdminGuard implements CanActivate {
     }
 
     const { role } = await this.authService.verifyToken(token);
-
     if (role !== 'admin') {
       logger(
         'AdminGuard',
