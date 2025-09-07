@@ -11,6 +11,7 @@ import { JwtPayload } from './interface/jwt-payload.interface';
 import { envs } from 'src/common/config';
 import { JwtService } from '@nestjs/jwt';
 import { LoginUserDto, RegisterUserDto, UpdateAuthDto } from './dto';
+import { PaginationDto } from '@common/dto';
 
 @Injectable()
 export class AuthService extends PrismaClient implements OnModuleInit {
@@ -112,12 +113,18 @@ export class AuthService extends PrismaClient implements OnModuleInit {
           id: true,
           name: true,
           password: true,
-          rol:true
+          rol: true,
         },
       });
 
-      const { password: _, rol, ...rest } = user;
+      if (!userConsult) {
+        throw new HttpException(
+          'Expired or invalid token',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
 
+      const { password, rol, ...rest } = userConsult;
       return {
         user: userConsult,
         role: rol,
@@ -132,20 +139,115 @@ export class AuthService extends PrismaClient implements OnModuleInit {
     }
   }
 
-  findAll() {
-    return `This action returns all auth`;
+  async findAllUser(paginationDto: PaginationDto) {
+    try {
+      const page = paginationDto.page ?? 1;
+      const limit = paginationDto.limit ?? 10;
+      const totalPages = await this.user.count();
+      const lastPage = Math.ceil(totalPages / limit);
+
+      const users = await this.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          rol: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+
+      return {
+        data: users,
+        meta: {
+          total_page: Math.ceil(totalPages / limit),
+          page: page,
+          lastPage: lastPage,
+        },
+      };
+    } catch (error) {
+      manejarError(error, 'Error getting users', 'AuthService-findAllUser');
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
+  async findOne(id: string) {
+    const user = await this.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    return user;
   }
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
+  async update(id_user: string, updateAuthDto: UpdateAuthDto) {
+    const { name, password, confirmPassword, newPassword } = updateAuthDto;
+
+    try {
+      if (password === newPassword) {
+        throw new HttpException(
+          'The current password is equal to the new password',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (newPassword != confirmPassword) {
+        throw new HttpException(
+          'Passwords do not match',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const userConsult = await this.findOne(id_user);
+
+      const isPasswordValid = bcrypt.compareSync(
+        password ?? '',
+        userConsult.password,
+      );
+
+      if (!isPasswordValid) {
+        throw new HttpException(
+          'Current password is incorrect',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      await this.user.update({
+        where: { id: id_user },
+        data: {
+          password: bcrypt.hashSync(newPassword ?? '', 10),
+          name: name,
+        },
+      });
+
+      return {
+        message: 'User updated successfully',
+        status: HttpStatus.NO_CONTENT,
+      };
+    } catch (error) {
+      manejarError(error, 'Error updating user', 'AuthService-updateUser');
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+  async remove(id: string) {
+    await this.findOne(id);
+
+    try {
+      await this.user.delete({
+        where: { id },
+      });
+      return {
+        message: 'User deleted successfully',
+        status: HttpStatus.NO_CONTENT,
+      };
+    } catch (error) {
+      manejarError(error, 'Error deleting user', "AuthService-remove");
+    }
   }
 
   async onModuleDestroy() {

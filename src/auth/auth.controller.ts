@@ -1,22 +1,55 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Res, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Res,
+  HttpException,
+  HttpStatus,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginUserDto, RegisterUserDto, UpdateAuthDto } from './dto';
 import { Response } from 'express';
 import { manejarError } from '@common/utils';
 import { Throttle } from '@nestjs/throttler';
+import { ApiCookieAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AdminGuard, AuthGuard } from '@common/guards';
+import { PaginationDto } from '@common/dto';
+import { CurrentUser } from '@common/interfaces';
+import { User } from '@common/decorators';
 
+@ApiTags('Auth')
 @Controller('auth')
-export class AuthController{
+export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiResponse({ status: 400, description: 'Passwords do not match' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'Registration could not be completed. Please verify your information.',
+  })
+  @ApiResponse({ status: 500, description: 'Error interno del servidor' })
   create(@Body() registerUserDto: RegisterUserDto) {
     return this.authService.registerUser(registerUserDto);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
+  @ApiOperation({ summary: 'Login an existing user' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 401, description: 'Authentication failed' })
+  @ApiResponse({ status: 500, description: 'Error interno del servidor' })
   async loginUser(@Body() loginUserDto: LoginUserDto, @Res() res: Response) {
     try {
       const authResponse = await this.authService.loginUser(loginUserDto);
@@ -50,6 +83,8 @@ export class AuthController{
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('logout')
+  @ApiOperation({ summary: 'Logout the current user' })
+  @ApiResponse({ status: 200, description: 'Logout successfully' })
   logout(@Res() res: Response) {
     res.clearCookie('jwt', {
       httpOnly: true,
@@ -59,23 +94,50 @@ export class AuthController{
     return res.send({ message: 'Logout successfully' });
   }
 
+  @UseGuards(AuthGuard, AdminGuard)
   @Get()
-  findAll() {
-    return this.authService.findAll();
+  @ApiCookieAuth('jwt')
+  @ApiOperation({ summary: 'Get all users' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'List all users' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'Expired or invalid token' })
+  @ApiResponse({ status: 500, description: 'Error interno del servidor' })
+  findAllUser(@Query() paginationDto: PaginationDto) {
+    return this.authService.findAllUser(paginationDto);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.authService.findOne(+id);
+  @UseGuards(AuthGuard)
+  @Patch()
+  @ApiCookieAuth('jwt')
+  @ApiOperation({ summary: 'Update a user' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'User updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({
+    status: 409,
+    description: 'The current password is equal to the new password',
+  })
+  @ApiResponse({ status: 404, description: 'Current password is incorrect' })
+  @ApiResponse({ status: 404, description: 'Passwords do not match' })
+  @ApiResponse({ status: 500, description: 'Error interno del servidor' })
+  update(@Body() updateAuthDto: UpdateAuthDto, @User() user: CurrentUser) {
+    return this.authService.update(user.id, updateAuthDto);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
-  }
-
+  @UseGuards(AuthGuard, AdminGuard)
+  @ApiCookieAuth('jwt')
+  @ApiQuery({ name: 'id', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'User deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 401, description: 'Expired or invalid token' })
+  @ApiOperation({ summary: 'Delete a user for ID' })
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.authService.remove(+id);
+    return this.authService.remove(id);
   }
 }
