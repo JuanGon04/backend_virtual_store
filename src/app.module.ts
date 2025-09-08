@@ -3,6 +3,8 @@ import { ProductsModule } from './products/products.module';
 import { AuthModule } from './auth/auth.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { OrdersModule } from './orders/orders.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { APP_GUARD } from '@nestjs/core';
     }),
     ProductsModule,
     AuthModule,
+    OrdersModule,
+    PrismaModule,
   ],
   providers: [
     {
