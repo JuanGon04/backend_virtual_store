@@ -8,19 +8,19 @@ datasource db {
 }
 
 model User {
-  id String @id @default(uuid())
-  name String
-  email String @unique
-  password String
-  rol String @default("client")
+  id                   String  @id @default(uuid())
+  name                 String
+  email                String  @unique
+  password             String
+  rol                  String  @default("client")
   token_reset_password String?
 
   //payments Payment[]
+  orders Orders[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
 
 // model Payment {
 //   id String @id @default(uuid())
@@ -36,7 +36,6 @@ model User {
 //   payment_id_mercadopago String?
 //   date_created DateTime?
 
-
 //   user User @relation(fields: [user_id], references: [id])
 //   product Product @relation(fields: [id_producto], references: [id])
 
@@ -45,16 +44,17 @@ model User {
 // }
 
 model Product {
-  id Int @id @default(autoincrement())
-  name String
-  price Float
-  stock Int
-  inputs Int @default(0)
-  outputs Int @default(0)
-  brand String @default("generica")
+  id          Int     @id @default(autoincrement())
+  name        String
+  price       Float
+  stock       Int
+  inputs      Int     @default(0)
+  outputs     Int     @default(0)
+  brand       String  @default("generica")
   description String?
   //image String
 
+  ordersItems OrdersItems[]
   //payments Payment[]
 
   createdAt DateTime @default(now())
@@ -62,28 +62,30 @@ model Product {
 }
 
 model Orders {
-  id Int @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
+  user_id     String
   totalAmount Float
-  totalItems Int
-  status OrdersStatus @default(PENDING)
-  paid Boolean @default(false)
-  paidAt DateTime?
+  totalItems  Int
+  status      OrdersStatus @default(PENDING)
+  paid        Boolean      @default(false)
+  paidAt      DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items OrdersItems[]
+  items  OrdersItems[]
+  User   User?         @relation(fields: [user_id], references: [id])
 }
 
 model OrdersItems {
-  id Int @id @default(autoincrement())
-  orderId Int
-  productId String
-  quantity Int
-  price Float
+  id        Int    @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  price     Float
 
   order Orders @relation(fields: [orderId], references: [id])
-  //product Product @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
