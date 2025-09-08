@@ -2,22 +2,19 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  OnModuleInit,
 } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
 import { CreateProductDto, UpdateProductDto } from './dto';
 import { limpiarEspacios, manejarError } from '@common/utils';
 import { PaginationDto } from '@common/dto';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
-export class ProductsService extends PrismaClient implements OnModuleInit {
-  onModuleInit() {
-    this.$connect();
-  }
+export class ProductsService {
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createProductDto: CreateProductDto, user_id: string) {
     const { inputs, ...restoDatos } = createProductDto;
-    const user = await this.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: user_id },
       select: { rol: true },
     });
@@ -29,7 +26,7 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
       );
     }
     try {
-      await this.product.create({
+      await this.prisma.product.create({
         data: {
           inputs: inputs,
           stock: inputs,
@@ -50,10 +47,10 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     try {
       const page = paginationDto.page ?? 1;
       const limit = paginationDto.limit ?? 10;
-      const totalPages = await this.product.count();
+      const totalPages = await this.prisma.product.count();
       const lastPage = Math.ceil(totalPages / limit);
 
-      const productos = await this.product.findMany({
+      const productos = await this.prisma.product.findMany({
         select: {
           id: true,
           name: true,
@@ -98,7 +95,7 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
         },
       }));
 
-      const productos = await this.product.findMany({
+      const productos = await this.prisma.product.findMany({
         where: {
           AND: [{ OR: filterName }, { OR: filterBrand }],
         },
@@ -123,7 +120,7 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
   }
 
   async findOne(id: number) {
-    const producto = await this.product.findFirst({
+    const producto = await this.prisma.product.findFirst({
       where: { id },
     });
 
@@ -145,7 +142,7 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     }
 
     try {
-      await this.product.update({
+      await this.prisma.product.update({
         where: { id },
         data: { ...updateProductDto, stock },
       });
@@ -163,7 +160,7 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     await this.findOne(id);
 
     try {
-      await this.product.delete({
+      await this.prisma.product.delete({
         where: { id },
       });
       return {
@@ -173,9 +170,5 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     } catch (error) {
       manejarError(error, 'Error deleting product', 'ProductsService-remove');
     }
-  }
-
-  async onModuleDestroy() {
-    await this.$disconnect();
   }
 }

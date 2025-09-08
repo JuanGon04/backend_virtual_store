@@ -1,10 +1,4 @@
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  OnModuleInit,
-} from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { manejarError } from 'src/common/utils';
 import * as bcrypt from 'bcrypt';
 import { JwtPayload } from './interface/jwt-payload.interface';
@@ -12,16 +6,14 @@ import { envs } from 'src/common/config';
 import { JwtService } from '@nestjs/jwt';
 import { LoginUserDto, RegisterUserDto, UpdateAuthDto } from './dto';
 import { PaginationDto } from '@common/dto';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
-export class AuthService extends PrismaClient implements OnModuleInit {
-  constructor(private readonly jwtService: JwtService) {
-    super();
-  }
-
-  onModuleInit() {
-    this.$connect();
-  }
+export class AuthService {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async signJWT(payload: JwtPayload, remenberMe = false): Promise<string> {
     const token = this.jwtService.sign(payload, {
@@ -34,7 +26,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
   async registerUser(registerUserDto: RegisterUserDto) {
     const { email, name, password, confirmPassword } = registerUserDto;
 
-    const userEmail = await this.user.findFirst({
+    const userEmail = await this.prisma.user.findFirst({
       where: { email },
     });
 
@@ -50,7 +42,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
     }
 
     try {
-      await this.user.create({
+      await this.prisma.user.create({
         data: {
           email,
           password: bcrypt.hashSync(password, 10),
@@ -71,7 +63,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
     const { email, password } = loginUserDto;
 
     try {
-      const user = await this.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { email },
         select: {
           id: true,
@@ -107,7 +99,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
         secret: envs.jwt_secret,
       });
 
-      const userConsult = await this.user.findUnique({
+      const userConsult = await this.prisma.user.findUnique({
         where: { id: user.id },
         select: {
           id: true,
@@ -143,10 +135,10 @@ export class AuthService extends PrismaClient implements OnModuleInit {
     try {
       const page = paginationDto.page ?? 1;
       const limit = paginationDto.limit ?? 10;
-      const totalPages = await this.user.count();
+      const totalPages = await this.prisma.user.count();
       const lastPage = Math.ceil(totalPages / limit);
 
-      const users = await this.user.findMany({
+      const users = await this.prisma.user.findMany({
         select: {
           id: true,
           name: true,
@@ -174,7 +166,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
   }
 
   async findOne(id: string) {
-    const user = await this.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id },
     });
 
@@ -217,7 +209,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
         );
       }
 
-      await this.user.update({
+      await this.prisma.user.update({
         where: { id: id_user },
         data: {
           password: bcrypt.hashSync(newPassword ?? '', 10),
@@ -238,7 +230,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
     await this.findOne(id);
 
     try {
-      await this.user.delete({
+      await this.prisma.user.delete({
         where: { id },
       });
       return {
@@ -246,11 +238,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
         status: HttpStatus.NO_CONTENT,
       };
     } catch (error) {
-      manejarError(error, 'Error deleting user', "AuthService-remove");
+      manejarError(error, 'Error deleting user', 'AuthService-remove');
     }
-  }
-
-  async onModuleDestroy() {
-    await this.$disconnect();
   }
 }
