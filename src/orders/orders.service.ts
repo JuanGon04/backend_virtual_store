@@ -16,6 +16,14 @@ export class OrdersService {
 
   async create(createOrderDto: CreateOrderDto, user_id: string) {
     try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: user_id },
+        select: { id: true },
+      });
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
       const productsIds = createOrderDto.items.map((item) => item.productId);
 
       const products: any[] = await validateIds(productsIds, this.prisma);
@@ -112,6 +120,15 @@ export class OrdersService {
 
   async findOneOrder(order_id: number, user_id: string) {
     try {
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: user_id },
+        select: { id: true },
+      });
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
       const products = await this.prisma.orders.findUnique({
         select: {
           id: true,

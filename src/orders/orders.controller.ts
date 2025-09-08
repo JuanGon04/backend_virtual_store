@@ -28,7 +28,13 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @UseGuards(AuthGuard)
+  @ApiCookieAuth('jwt')
   @Post()
+  @ApiOperation({ summary: 'Create a new order' })
+  @ApiResponse({ status: 201, description: 'Order created successfully' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 401, description: 'Expired or invalid token' })
+  @ApiResponse({ status: 500, description: 'Error interno del servidor' })
   create(@Body() createOrderDto: CreateOrderDto, @User() user: CurrentUser) {
     return this.ordersService.create(createOrderDto, user.id);
   }
@@ -40,6 +46,7 @@ export class OrdersController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'List all orders' })
+  @ApiResponse({ status: 401, description: 'Expired or invalid token' })
   findAllOrders(
     @Query() paginationDto: PaginationDto,
     @User() user: CurrentUser,
@@ -49,6 +56,13 @@ export class OrdersController {
 
   @UseGuards(AuthGuard)
   @Get(':id')
+  @ApiCookieAuth('jwt')
+  @ApiOperation({ summary: 'Get orders by ID' })
+  @ApiQuery({ name: 'id', required: true, type: Number, description: 'Order ID' })
+  @ApiResponse({ status: 201, description: 'Order created successfully' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 401, description: 'Expired or invalid token' })
+  @ApiResponse({ status: 500, description: 'Error interno del servidor' })
   findOneOrder(@Param('id', ParseIntPipe) id: number, @User() user: CurrentUser) {
     return this.ordersService.findOneOrder(id, user.id);
   }
