@@ -1,16 +1,17 @@
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateProductDto, UpdateProductDto } from './dto';
-import { limpiarEspacios, manejarError } from '@common/utils';
+import { manejarError } from '@common/utils';
 import { PaginationDto } from '@common/dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { RedisCacheService } from 'src/cache-redis/cache-redis.service';
+import { formatQuery } from './helpers';
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheServer: RedisCacheService,
+  ) {}
 
   async create(createProductDto: CreateProductDto, user_id: string) {
     const { inputs, ...restoDatos } = createProductDto;
@@ -34,12 +35,19 @@ export class ProductsService {
         },
       });
 
+      //Invalidar caché
+      await this.cacheServer.delByPattern('products:*');
+
       return {
         message: 'Product created successfully',
         status: HttpStatus.CREATED,
       };
     } catch (error) {
-      manejarError(error, 'Error creating product', 'ProductsService-create');
+      manejarError(
+        error,
+        `Error creating product ${error}`,
+        'ProductsService-create',
+      );
     }
   }
 
@@ -47,10 +55,21 @@ export class ProductsService {
     try {
       const page = paginationDto.page ?? 1;
       const limit = paginationDto.limit ?? 10;
-      const totalPages = await this.prisma.product.count();
+      const totalPages = await this.prisma.product.count({
+        where: { isActive: true },
+      });
       const lastPage = Math.ceil(totalPages / limit);
 
+      const cacheKey = `products:page:${page}:limit:${limit}`;
+
+      //Consumir el caché si hay datos
+      const cached = await this.cacheServer.get(cacheKey);
+      if (cached) {
+        return { ...cached, fromCache: true };
+      }
+
       const productos = await this.prisma.product.findMany({
+        where: { isActive: true },
         select: {
           id: true,
           name: true,
@@ -65,7 +84,7 @@ export class ProductsService {
         take: limit,
       });
 
-      return {
+      const response = {
         data: productos,
         meta: {
           total_page: Math.ceil(totalPages / limit),
@@ -73,6 +92,11 @@ export class ProductsService {
           lastPage: lastPage,
         },
       };
+
+      //Guardar datos en  caché
+      await this.cacheServer.set(cacheKey, response);
+
+      return response;
     } catch (error) {
       manejarError(error, 'Error getting products', 'ProductsService-findAll');
     }
@@ -80,24 +104,34 @@ export class ProductsService {
 
   async findAllProductsQuery(query: string) {
     try {
-      const palabras = limpiarEspacios(query).split(' ');
+      const palabrasFiltradas = formatQuery(query);
+
       // Filtro para nombre
-      const filterName = palabras.map((palabra) => ({
+      const filterName = palabrasFiltradas.map((palabra) => ({
         name: {
           contains: palabra,
         },
       }));
 
       // Filtro para marca
-      const filterBrand = palabras.map((palabra) => ({
-        brand: {
-          contains: palabra,
-        },
+      const filterBrand = palabrasFiltradas.map((palabra) => ({
+        OR: [{ brand: { contains: palabra } }],
       }));
+
+      //await this.cacheServer.del('products:query:[limon,marca,generica]')
+
+      const cacheKey = `products:query:[${palabrasFiltradas.filter((word) => word.length > 3)}]`;
+      console.log(cacheKey);
+      //Consumir el caché si hay datos
+      const cached = await this.cacheServer.get(cacheKey);
+      if (cached) {
+        return { ...cached, fromCache: true };
+      }
 
       const productos = await this.prisma.product.findMany({
         where: {
           AND: [{ OR: filterName }, { OR: filterBrand }],
+          isActive: true,
         },
         select: {
           id: true,
@@ -109,7 +143,14 @@ export class ProductsService {
         take: 10,
       });
 
-      return productos;
+      const response = {
+        data: productos,
+      };
+
+      //Guardar datos en  caché
+      await this.cacheServer.set(cacheKey, response);
+
+      return response;
     } catch (error) {
       manejarError(
         error,
@@ -121,7 +162,7 @@ export class ProductsService {
 
   async findOne(id: number) {
     const producto = await this.prisma.product.findFirst({
-      where: { id },
+      where: { id, isActive: true },
     });
 
     if (!producto) {
@@ -150,6 +191,9 @@ export class ProductsService {
       manejarError(error, 'Error updating product', 'ProductsService-update');
     }
 
+    //Invalidar caché
+    await this.cacheServer.delByPattern('products:*');
+
     return {
       message: 'Product updated successfully',
       status: HttpStatus.NO_CONTENT,
@@ -160,9 +204,16 @@ export class ProductsService {
     await this.findOne(id);
 
     try {
-      await this.prisma.product.delete({
+      await this.prisma.product.update({
         where: { id },
+        data: {
+          isActive: false,
+        },
       });
+
+      //Invalidar caché
+      await this.cacheServer.delByPattern('products:*');
+
       return {
         message: 'Product deleted successfully',
         status: HttpStatus.NO_CONTENT,

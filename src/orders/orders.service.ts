@@ -9,10 +9,14 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { manejarError } from '@common/utils';
 import { PaginationDto } from '@common/dto';
 import { CreateOrderDto } from './dto';
+import { RedisCacheService } from 'src/cache-redis/cache-redis.service';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheServer: RedisCacheService,
+  ) {}
 
   async create(createOrderDto: CreateOrderDto, user_id: string) {
     try {
@@ -58,6 +62,9 @@ export class OrdersService {
         return order;
       });
 
+      //Invalidar caché
+      await this.cacheServer.delByPattern(`orders:user:*`);
+
       return {
         mesagge: 'Order created successfully',
         status: HttpStatus.CREATED,
@@ -84,6 +91,14 @@ export class OrdersService {
       });
       const lastPage = Math.ceil(totalPages / limit);
 
+      const cacheKey = `orders:user:${user_id}:page:${page}:limit:${limit}`;
+
+      //Consumir el caché si hay datos
+      const cached = await this.cacheServer.get(cacheKey);
+      if (cached) {
+        return { ...cached, fromCache: true };
+      }
+
       const orders = await this.prisma.orders.findMany({
         where: { user_id },
         select: {
@@ -105,7 +120,7 @@ export class OrdersService {
         fechaCreacion: formatDate(createdAt),
       }));
 
-      return {
+      const response = {
         data: ordersWithDate,
         meta: {
           total_page: Math.ceil(totalPages / limit),
@@ -113,6 +128,11 @@ export class OrdersService {
           lastPage: lastPage,
         },
       };
+
+      //Guardar datos en  caché
+      await this.cacheServer.set(cacheKey, response);
+
+      return response;
     } catch (error) {
       manejarError(error, 'Error getting products', 'ProductsService-findAll');
     }
@@ -120,13 +140,20 @@ export class OrdersService {
 
   async findOneOrder(order_id: number, user_id: string) {
     try {
-
       const user = await this.prisma.user.findUnique({
         where: { id: user_id },
         select: { id: true },
       });
       if (!user) {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
+      const cacheKey = `orders:oneuser:${user_id}`;
+
+      //Consumir el caché si hay datos
+      const cached = await this.cacheServer.get(cacheKey);
+      if (cached) {
+        return { ...cached, fromCache: true };
       }
 
       const products = await this.prisma.orders.findUnique({
@@ -160,10 +187,15 @@ export class OrdersService {
         quantity: item.quantity,
       }));
 
-      return {
+      const response = {
         ...products,
-        items: itemsWithNames, // reemplazamos los items originales por los formateados
+        items: itemsWithNames,
       };
+
+      //Guardar datos en  caché
+      await this.cacheServer.set(cacheKey, response);
+
+      return response;
     } catch (error) {
       manejarError(
         error,

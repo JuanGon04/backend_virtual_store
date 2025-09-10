@@ -7,12 +7,14 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginUserDto, RegisterUserDto, UpdateAuthDto } from './dto';
 import { PaginationDto } from '@common/dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { RedisCacheService } from 'src/cache-redis/cache-redis.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly cacheServer: RedisCacheService,
   ) {}
 
   async signJWT(payload: JwtPayload, remenberMe = false): Promise<string> {
@@ -49,6 +51,9 @@ export class AuthService {
           name,
         },
       });
+
+      //Invalidar caché
+      await this.cacheServer.delByPattern(`users:*`);
 
       return {
         message: 'User registered successfully',
@@ -138,6 +143,14 @@ export class AuthService {
       const totalPages = await this.prisma.user.count();
       const lastPage = Math.ceil(totalPages / limit);
 
+      const cacheKey = `users:page:${page}:limit:${limit}`;
+
+      //Consumir el caché si hay datos
+      const cached = await this.cacheServer.get(cacheKey);
+      if (cached) {
+        return { ...cached, fromCache: true };
+      }
+
       const users = await this.prisma.user.findMany({
         select: {
           id: true,
@@ -152,7 +165,7 @@ export class AuthService {
         take: limit,
       });
 
-      return {
+      const response = {
         data: users,
         meta: {
           total_page: Math.ceil(totalPages / limit),
@@ -160,6 +173,11 @@ export class AuthService {
           lastPage: lastPage,
         },
       };
+
+      //Guardar datos en  caché
+      await this.cacheServer.set(cacheKey, response);
+
+      return response;
     } catch (error) {
       manejarError(error, 'Error getting users', 'AuthService-findAllUser');
     }
@@ -217,6 +235,9 @@ export class AuthService {
         },
       });
 
+      //Invalidar caché
+      await this.cacheServer.delByPattern(`users:*`);
+
       return {
         message: 'User updated successfully',
         status: HttpStatus.NO_CONTENT,
@@ -233,6 +254,10 @@ export class AuthService {
       await this.prisma.user.delete({
         where: { id },
       });
+
+      //Invalidar caché
+      await this.cacheServer.delByPattern(`users:*`);
+
       return {
         message: 'User deleted successfully',
         status: HttpStatus.NO_CONTENT,

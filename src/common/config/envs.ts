@@ -11,6 +11,8 @@ interface EnvVars {
   JWT_SECRET: string;
   SWAGGER_USER: string;
   SWAGGER_SECRET: string;
+  REDIS_HOST: string;
+  REDIS_PORT: number;
 }
 
 const envSchema = joi
@@ -22,6 +24,9 @@ const envSchema = joi
     JWT_SECRET: joi.string().required(),
     SWAGGER_SECRET: joi.string().required(),
     SWAGGER_USER: joi.string().required(),
+    REDIS_HOST: joi.string().required(),
+    REDIS_PORT: joi.number().required(),
+
     // FRONTEND_URL_DEV: joi.string().required(),
     // FRONTEND_URL_PROD: joi.string().required(),
   })
@@ -47,4 +52,6 @@ export const envs = {
   jwt_secret: envVars.JWT_SECRET,
   swagger_secret: envVars.SWAGGER_SECRET,
   swagger_user: envVars.SWAGGER_USER,
+  redis_host: envVars.REDIS_HOST,
+  redis_port: envVars.REDIS_PORT
 };

@@ -9,6 +9,7 @@ export async function validateIds(ids: number[], prisma: PrismaClient) {
       id: {
         in: ids,
       },
+      isActive: true
     },
     select: {
       id: true,
