@@ -1,5 +1,4 @@
 services:
-  
   # Backend Service
   virtual_store_backend:
     container_name: virtual_store_backend
@@ -9,7 +8,34 @@ services:
       - '${PORT}:3000'
     depends_on:
       - virtual-store-db
-  
+      - redis
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT}
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=${PORT}
+      - FRONTEND_URL_DEV=${FRONTEND_URL_DEV}
+      - FRONTEND_URL_PROD=${FRONTEND_URL_PROD}
+      - ORIGINS_PROD=${ORIGINS_PROD}
+      - ORIGINS_DEV=${ORIGINS_DEV}
+      - JWT_SECRET=${JWT_SECRET}
+      - SWAGGER_USER=${SWAGGER_USER}
+      - SWAGGER_SECRET=${SWAGGER_SECRET}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    networks:
+      - backend_net
+
+
+  redis:
+    image: redis:7.2
+    container_name: redis_server
+    restart: always
+    command: ['redis-server', '--save', '', '--appendonly', 'no', "--maxmemory", "100mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - '6379:6379'
+    networks:
+          - backend_net
+
   # MySQL Database
   virtual-store-db:
     container_name: virtual_store_database
@@ -24,3 +50,9 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    networks:
+          - backend_net
+
+networks:
+  backend_net:
+    driver: bridge
