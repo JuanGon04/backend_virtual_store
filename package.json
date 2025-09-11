@@ -21,6 +21,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
@@ -29,7 +30,9 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/throttler": "^6.4.0",
+    "@paypal/checkout-server-sdk": "^1.0.3",
     "@prisma/client": "^6.15.0",
+    "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "cache-manager": "^7.2.0",
     "cache-manager-ioredis-yet": "^2.1.2",

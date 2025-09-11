@@ -121,7 +121,6 @@ export class ProductsService {
       //await this.cacheServer.del('products:query:[limon,marca,generica]')
 
       const cacheKey = `products:query:[${palabrasFiltradas.filter((word) => word.length > 3)}]`;
-      console.log(cacheKey);
       //Consumir el caché si hay datos
       const cached = await this.cacheServer.get(cacheKey);
       if (cached) {

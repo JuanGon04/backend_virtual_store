@@ -24,7 +24,7 @@ import { APP_GUARD } from '@nestjs/core';
     OrdersModule,
     PrismaModule,
     PaymentsModule,
-    CacheRedisModule,
+    CacheRedisModule
   ],
   providers: [
     {
