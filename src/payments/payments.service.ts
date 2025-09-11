@@ -326,6 +326,8 @@ export class PaymentsService {
         }),
       ]);
 
+      await this.cacheServer.delByPattern(`orders:user:*`);
+
       return { received: true };
     } catch (error) {
       logger(
