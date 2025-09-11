@@ -22,26 +22,20 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-// model Payment {
-//   id String @id @default(uuid())
-//   user_id String
-//   id_producto String
-//   status String @default("pending")
-//   payment_method Json?
-//   external_reference String @unique
-//   preference_id String?
-//   client_id String
-//   collector_id String?
-//   payer Json? 
-//   payment_id_mercadopago String?
-//   date_created DateTime?
+model Payment {
+  id                String    @id @default(uuid())
+  ordersId          Int
+  status            String    @default("pending")
+  payment_method    Json?
+  invoice_id        String    @unique
+  payment_id_paypal String
+  payer             Json?
+  date_created      DateTime?
 
-//   user User @relation(fields: [user_id], references: [id])
-//   product Product @relation(fields: [id_producto], references: [id])
-
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Orders    Orders?  @relation(fields: [ordersId], references: [id])
+}
 
 model Product {
   id          Int     @id @default(autoincrement())
@@ -56,7 +50,6 @@ model Product {
   //image String
 
   ordersItems OrdersItems[]
-  //payments Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -74,8 +67,9 @@ model Orders {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items OrdersItems[]
-  User  User?         @relation(fields: [user_id], references: [id])
+  payment Payment[]
+  items   OrdersItems[]
+  User    User?         @relation(fields: [user_id], references: [id])
 }
 
 model OrdersItems {
@@ -87,6 +81,20 @@ model OrdersItems {
 
   order   Orders  @relation(fields: [orderId], references: [id])
   product Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Auditoria {
+  id                          Int    @id @default(autoincrement())
+  payment_id                  String @unique
+  payment_id_paypal           String
+  response_created_preference Json?
+  resquested_webhook          Json?
+  response_get_payment        Json?
+  external_reference          String @unique
+  info_return_payment         Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
